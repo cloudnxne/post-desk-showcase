@@ -1,0 +1,80 @@
+name: Deploy API to Cloud Run
+
+# Runs by hand from the Actions tab (Actions > Deploy API to Cloud Run > Run workflow).
+# Needs the one-time Google Cloud setup in docs/DEPLOY.md. No keys are stored in GitHub:
+# Actions signs in to Google Cloud with Workload Identity Federation, and the API keys live in Secret Manager.
+
+on:
+  workflow_dispatch:      # run it by hand once you've done the setup in docs/DEPLOY.md
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: vars.GCP_PROJECT_ID != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION || 'europe-west2' }}
+      SERVICE: post-desk-api
+      IMAGE: ${{ vars.GCP_REGION || 'europe-west2' }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/post-desk/post-desk-api:${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Tests must pass before deploying
+        working-directory: service
+        run: pip install -r requirements-dev.txt && pytest
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and push image
+        run: |
+          gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+          docker build -t "$IMAGE" service
+          docker push "$IMAGE"
+
+      - name: Check the sign-in domain is set
+        run: |
+          if [ -z "${{ vars.POST_DESK_ALLOWED_DOMAIN }}" ]; then
+            echo "::error title=Missing setting::Add the repo variable POST_DESK_ALLOWED_DOMAIN (your Google Workspace domain, e.g. example.co.uk). Without it nobody could sign in, so the deploy has stopped and the live service is unchanged."
+            exit 1
+          fi
+
+      - name: Deploy
+        id: deploy
+        run: |
+          SECRETS="ANTHROPIC_API_KEY=anthropic-api-key:latest,POST_DESK_API_KEY=post-desk-api-key:latest"
+          # Optional: a connected Search Console account saved by service/scripts/connect_gsc.py
+          if [ -n "${{ vars.POST_DESK_GSC_SECRET }}" ]; then SECRETS="$SECRETS,POST_DESK_GSC_CREDENTIALS=${{ vars.POST_DESK_GSC_SECRET }}:latest"; fi
+          gcloud run deploy "$SERVICE" \
+            --project "$PROJECT" --region "$REGION" --image "$IMAGE" \
+            --service-account "post-desk-runtime@$PROJECT.iam.gserviceaccount.com" \
+            --allow-unauthenticated \
+            --set-secrets "$SECRETS" \
+            --set-env-vars "^|^POST_DESK_MODEL=${{ vars.POST_DESK_MODEL || 'claude-sonnet-5-5' }}|POST_DESK_ALLOWED_DOMAIN=${{ vars.POST_DESK_ALLOWED_DOMAIN }}|POST_DESK_GOOGLE_AUDIENCES=${{ vars.POST_DESK_GOOGLE_AUDIENCES || '32555940559.apps.googleusercontent.com' }}|GOOGLE_CLOUD_PROJECT=${{ vars.GCP_PROJECT_ID }}|POST_DESK_BUCKET=${{ vars.POST_DESK_BUCKET }}|POST_DESK_VERTEX_LOCATION=${{ vars.POST_DESK_VERTEX_LOCATION || 'europe-west2' }}|POST_DESK_EMBED_MODEL=${{ vars.POST_DESK_EMBED_MODEL || 'gemini-embedding-001' }}|POST_DESK_EFFORT=${{ vars.POST_DESK_EFFORT || 'low' }}|POST_DESK_PROVIDER=${{ vars.POST_DESK_PROVIDER || 'anthropic' }}|POST_DESK_FALLBACK_PROVIDER=${{ vars.POST_DESK_FALLBACK_PROVIDER || 'gemini' }}|POST_DESK_GEMINI_MODEL=${{ vars.POST_DESK_GEMINI_MODEL || 'gemini-3.8-flash' }}|POST_DESK_GEMINI_LOCATION=${{ vars.POST_DESK_GEMINI_LOCATION || 'global' }}|POST_DESK_CLAUDE_VERTEX_MODEL=${{ vars.POST_DESK_CLAUDE_VERTEX_MODEL || 'claude-sonnet-5-5' }}|POST_DESK_GSC=${{ vars.POST_DESK_GSC || 'on' }}" \
+            --cpu 1 --memory 1Gi --min-instances 0 --max-instances 3 --concurrency 20 --timeout 300 \
+            --quiet
+          echo "url=$(gcloud run services describe "$SERVICE" --project "$PROJECT" --region "$REGION" --format 'value(status.url)')" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test the live service
+        run: |
+          KEY=$(gcloud secrets versions access latest --secret post-desk-api-key --project "$PROJECT")
+          echo "::add-mask::$KEY"
+          service/smoke_test.sh "${{ steps.deploy.outputs.url }}" "$KEY"
+
+      - name: Summary
+        run: echo "Deployed ${{ github.sha }} to ${{ steps.deploy.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"

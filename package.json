@@ -1,0 +1,20 @@
+{
+  "name": "post-desk",
+  "version": "1.2.0",
+  "private": true,
+  "description": "Meta descriptions, internal links and SEO-formatted HTML for client blog posts.",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "build": "node scripts/build.mjs",
+    "check": "node scripts/check-build.mjs",
+    "golden": "node scripts/golden.mjs"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^3.2.4",
+    "jsdom": "^26.1.0",
+    "vitest": "^3.2.4"
+  }
+}

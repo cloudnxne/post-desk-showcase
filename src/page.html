@@ -1,0 +1,643 @@
+<title>Post Desk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: client rail on the left, one working desk on the right with three tabs (New post / Sitemap & settings / History). */
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --sunk:#eceef2; --line:#d9dce3; --fg:#1b2130; --muted:#5d6577;
+  --accent:#2747c9; --accent-ink:#ffffff; --accent-soft:#e3e8fb;
+  --mark:#ffe78a; --mark-ink:#3a2f00;
+  --good:#1f7a4d; --warn:#a15c00; --bad:#b3261e;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"Public Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12151c; --surface:#1a1e27; --sunk:#232834; --line:#323848; --fg:#e7eaf1; --muted:#9aa2b4;
+  --accent:#8ea4ff; --accent-ink:#0f1630; --accent-soft:#252f55; --mark:#6b5a12; --mark-ink:#fff4c4;
+  --good:#5fd39a; --warn:#f0b35c; --bad:#ff8a80; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151c; --surface:#1a1e27; --sunk:#232834; --line:#323848; --fg:#e7eaf1; --muted:#9aa2b4;
+  --accent:#8ea4ff; --accent-ink:#0f1630; --accent-soft:#252f55; --mark:#6b5a12; --mark-ink:#fff4c4;
+  --good:#5fd39a; --warn:#f0b35c; --bad:#ff8a80; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--fg);font:15px/1.55 var(--body)}
+.wrap{max-width:1240px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+h1{font:700 26px/1.1 var(--display);margin:0;letter-spacing:-.01em}
+h2{font:700 19px/1.2 var(--display);margin:0;text-wrap:balance}
+h3{font:600 13px/1.2 var(--body);margin:0;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.sub{color:var(--muted);font-size:14px}
+.layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:820px){.layout{grid-template-columns:minmax(0,1fr)}}
+.rail{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.rail-head{display:flex;justify-content:space-between;align-items:center;padding:2px 4px 6px}
+.client{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:1px;padding:9px 10px;border-radius:7px}
+.client:hover{background:var(--sunk)}
+.client:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.client[aria-current="true"]{background:var(--accent-soft)}
+.client b{font-weight:600}
+.client small{color:var(--muted);font-size:12.5px}
+.desk{background:var(--surface);border:1px solid var(--line);border-radius:10px;min-width:0}
+.desk-head{padding:16px 20px 0;display:flex;flex-direction:column;gap:12px;border-bottom:1px solid var(--line)}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tab{all:unset;cursor:pointer;padding:9px 12px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent}
+.tab[aria-selected="true"]{color:var(--fg);border-color:var(--accent)}
+.tab:focus-visible{outline:2px solid var(--accent)}
+.pane{padding:20px;display:flex;flex-direction:column;gap:18px}
+label{display:flex;flex-direction:column;gap:5px;font-weight:500;font-size:13.5px;min-width:0}
+label .hint{font-weight:400;color:var(--muted);font-size:12.5px}
+input[type=text],input[type=url],textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:9px 11px;width:100%}
+textarea{resize:vertical;min-height:90px}
+textarea.big{min-height:300px;font-size:14px}
+textarea.mono,.mono{font-family:var(--mono);font-size:12.5px}
+input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.btn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:9px 15px;border-radius:7px;font-weight:600;font-size:14px;background:var(--sunk);color:var(--fg);border:1px solid var(--line)}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.small{padding:5px 10px;font-size:12.5px}
+.btn.danger{color:var(--bad)}
+.btn[disabled]{opacity:.5;pointer-events:none}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.note{font-size:13px;color:var(--muted)}
+.status{font-size:13.5px}
+.status.err{color:var(--bad)} .status.ok{color:var(--good)}
+.empty{padding:40px 24px;display:flex;flex-direction:column;gap:14px;max-width:560px}
+.steps{display:flex;flex-direction:column;gap:10px;margin:0;padding-left:20px}
+.card{border:1px solid var(--line);border-radius:9px;padding:14px;display:flex;flex-direction:column;gap:8px;background:var(--bg);min-width:0}
+.metas{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.meta-text{font-size:14.5px}
+.meter{display:flex;align-items:center;gap:8px;font:12px var(--mono);color:var(--muted)}
+.meter i{flex:1;height:4px;border-radius:2px;background:var(--sunk);position:relative;overflow:hidden}
+.meter i span{position:absolute;inset:0 auto 0 0;border-radius:2px}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--sunk);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.pill.high{background:var(--accent-soft);color:var(--accent)}
+.links{display:flex;flex-direction:column;gap:10px}
+.link{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:start}
+.link input{margin-top:4px;width:16px;height:16px;accent-color:var(--accent)}
+.link .body{display:flex;flex-direction:column;gap:5px;min-width:0}
+.ctx{font-size:14px}
+mark{background:var(--mark);color:var(--mark-ink);padding:0 2px;border-radius:3px}
+.url{font:12.5px var(--mono);color:var(--accent);word-break:break-all}
+.why{font-size:13px;color:var(--muted)}
+.section-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.urllist{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:7px;padding:8px 10px;background:var(--bg)}
+.urllist div{font:12px/1.7 var(--mono);color:var(--muted);word-break:break-all}
+.stat{font:500 13px var(--mono);color:var(--muted)}
+.hist{border:1px solid var(--line);border-radius:9px;background:var(--bg)}
+.hist summary{cursor:pointer;padding:12px 14px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;list-style:none}
+.hist summary::-webkit-details-marker{display:none}
+.hist[open] summary{border-bottom:1px solid var(--line)}
+.hist .inner{padding:14px;display:flex;flex-direction:column;gap:10px}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--bad);border-radius:8px}
+.spinner{width:14px;height:14px;border:2px solid var(--accent-soft);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spinner{animation:none}}
+.for-client{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;border-radius:8px;background:var(--accent-soft);font-size:14px}
+.for-client b{font-weight:600}
+.warnbox{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border:1px solid var(--warn);border-radius:8px;color:var(--fg);font-size:14px}
+.outline{display:flex;flex-direction:column;gap:3px;font-size:13.5px}
+.outline div{display:flex;gap:8px;align-items:baseline}
+.outline code{font:600 11px var(--mono);color:var(--accent);min-width:22px}
+.preview{border:1px solid var(--line);border-radius:9px;padding:6px 18px 14px;background:var(--bg);max-height:520px;overflow:auto;font-size:14.5px;max-width:100%}
+.preview :is(h1,h2,h3,h4){font-family:var(--display);font-weight:700;line-height:1.25;margin:18px 0 6px;text-transform:none;letter-spacing:0;color:var(--fg)}
+.preview h1{font-size:24px}.preview h2{font-size:20px}.preview h3{font-size:16.5px}.preview h4{font-size:15px}
+.preview :is(h1,h2,h3,h4)::before{font:600 10.5px var(--mono);color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:1px 5px;margin-right:8px;vertical-align:middle}
+.preview h1::before{content:"H1"}.preview h2::before{content:"H2"}.preview h3::before{content:"H3"}.preview h4::before{content:"H4"}
+.preview a{color:var(--accent);background:var(--mark);color:var(--mark-ink);text-decoration:underline}
+.preview p{margin:8px 0}
+.preview :is(ul,ol){margin:8px 0;padding-left:22px}
+.preview li{margin:3px 0}
+.preview li::marker{color:var(--accent)}
+.checkline{flex-direction:row;align-items:center;gap:8px;font-weight:500}
+.checkline input{width:16px;height:16px;accent-color:var(--accent)}
+.unavailable{padding:14px;border:1px dashed var(--warn);border-radius:8px;color:var(--warn);font-size:14px}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Post Desk</h1>
+    <span class="sub">Meta descriptions and internal links for each client's new blog posts. Sitemaps are saved per client.</span>
+  </header>
+  <div id="notice" class="unavailable" hidden></div>
+  <div class="layout">
+    <aside class="rail" aria-label="Clients">
+      <div class="rail-head"><h3>Clients</h3><button class="btn small" id="newClientBtn">+ New</button></div>
+      <div id="clientList"><p class="note" style="padding:4px">Loading clients…</p></div>
+    </aside>
+    <main class="desk" id="desk"></main>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = (s, r = document) => r.querySelector(s);
+/*@@CORE@@*/
+const CHUNK = 1500;
+
+let db = null, sample = null, user = null;
+let clients = [];            // [{id, ...data}]
+let currentId = null;
+let tab = "post";
+let sitemapCache = {};       // clientId -> urls[]
+let posts = [];
+let postsUnsub = null;
+let canWrite = true;
+// Per-client state, so switching clients never touches another client's draft or a run in progress.
+const drafts = {}, results = {}, runs = {};
+const draftFor = id => drafts[id] ||= {title:"", keyword:"", url:"", content:""};
+function setRun(id, html, cls = "", busy = true){
+  runs[id] = {html, cls, busy};
+  if (id !== currentId || tab !== "post") return;
+  const st = $("#genStatus"), btn = $("#genBtn");
+  if (st) { st.className = "status " + cls; st.innerHTML = html; }
+  if (btn) btn.disabled = busy;
+}
+
+const notice = msg => { const n = $("#notice"); n.textContent = msg; n.hidden = !msg; };
+
+
+async function copy(text, btn){
+  const old = btn.textContent;
+  try { await navigator.clipboard.writeText(text); btn.textContent = "Copied"; }
+  catch { const ta = document.createElement("textarea"); ta.value = text; document.body.append(ta); ta.select(); try{document.execCommand("copy"); btn.textContent="Copied";}catch{btn.textContent="Select & copy manually";} ta.remove(); }
+  setTimeout(() => btn.textContent = old, 1400);
+}
+
+function meterHTML(len){
+  const pct = Math.min(100, len/170*100);
+  const col = len < 120 ? "var(--warn)" : len <= 160 ? "var(--good)" : "var(--bad)";
+  const label = metaStatus(len);
+  return `<div class="meter"><i><span style="width:${pct}%;background:${col}"></span></i>${len} chars · ${label}</div>`;
+}
+
+function highlight(sentence, anchor){
+  const s = esc(sentence), a = esc(anchor);
+  const i = s.toLowerCase().indexOf(a.toLowerCase());
+  return i < 0 ? s + ` <mark>${a}</mark>` : s.slice(0,i) + "<mark>" + s.slice(i, i+a.length) + "</mark>" + s.slice(i+a.length);
+}
+
+let includeH1 = false;
+try { includeH1 = localStorage.getItem("pd-h1") === "1"; } catch {}
+
+// ---------- data ----------
+const client = () => clients.find(c => c.id === currentId);
+
+async function loadSitemap(c){
+  if (sitemapCache[c.id]) return sitemapCache[c.id];
+  const n = c.chunks || 0, urls = [];
+  for (let i = 0; i < n; i++){
+    const s = await db.doc(`clients/${c.id}/sitemap/c${i}`).get();
+    if (s.exists) urls.push(...(s.data().urls || []));
+  }
+  return sitemapCache[c.id] = urls;
+}
+
+async function saveSitemap(c, urls){
+  const old = c.chunks || 0, n = Math.ceil(urls.length / CHUNK);
+  for (let i = 0; i < n; i++) await db.doc(`clients/${c.id}/sitemap/c${i}`).set({urls: urls.slice(i*CHUNK, (i+1)*CHUNK)});
+  for (let i = n; i < old; i++) await db.doc(`clients/${c.id}/sitemap/c${i}`).delete();
+  await db.doc(`clients/${c.id}`).update({chunks: n, urlCount: urls.length, sitemapUpdated: Date.now()});
+  sitemapCache[c.id] = urls;
+}
+
+function watchPosts(){
+  postsUnsub?.(); posts = [];
+  if (!currentId) return;
+  postsUnsub = db.collection(`clients/${currentId}/posts`).orderBy("createdAt","desc").limit(200).onSnapshot(
+    snap => {
+      posts = snap.docs.map(d => ({id:d.id, ...d.data()}));
+      const ht = document.querySelector('.tab[data-t="history"]'); if (ht) ht.textContent = `History (${posts.length})`;
+      if (tab === "history") renderDesk();
+    },
+    () => {}
+  );
+}
+
+// ---------- render: rail ----------
+function renderClients(){
+  const el = $("#clientList");
+  if (!db) { el.innerHTML = `<p class="note" style="padding:4px">Saved clients need you to be signed in.</p>`; return; }
+  if (!clients.length) { el.innerHTML = `<p class="note" style="padding:4px">No clients yet. Add one to save its sitemap.</p>`; return; }
+  el.innerHTML = "";
+  for (const c of clients){
+    const b = document.createElement("button");
+    b.className = "client"; b.setAttribute("aria-current", c.id === currentId);
+    b.innerHTML = `<b></b><small></small>`;
+    b.querySelector("b").textContent = c.name || "Untitled client";
+    b.querySelector("small").textContent = `${c.domain || "no domain"} · ${(c.urlCount||0).toLocaleString()} URLs`;
+    b.onclick = () => selectClient(c.id);
+    el.append(b);
+  }
+}
+
+function selectClient(id, toTab){
+  currentId = id;
+  const c = client();
+  tab = toTab || (c && !c.urlCount ? "settings" : "post");
+  try { localStorage.setItem("pd-client", id); } catch {}
+  watchPosts(); renderClients(); renderDesk();
+}
+
+// ---------- render: desk ----------
+function renderDesk(){
+  const desk = $("#desk");
+  const c = client();
+  if (!c){
+    desk.innerHTML = `<div class="empty">
+      <h2>Set up a client once, then just paste new posts</h2>
+      <ol class="steps">
+        <li><b>Add a client</b> with their domain and sitemap (paste the XML, a list of URLs, or upload the .xml file). It's saved, so you only do this once.</li>
+        <li><b>Paste a new blog post.</b> You get three meta description options sized for Google, plus internal links: the exact phrase to link, the page it should point to, and why.</li>
+        <li><b>Copy the post back as HTML</b> with the links you ticked already inserted. Every run is kept in the client's history.</li>
+      </ol>
+      <div class="actions"><button class="btn primary" id="emptyNew">+ Add your first client</button></div>
+    </div>`;
+    $("#emptyNew").onclick = newClient;
+    return;
+  }
+  desk.innerHTML = `<div class="desk-head">
+      <div class="section-head"><div><h2></h2><div class="sub" id="dh-sub"></div></div></div>
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" data-t="post">New post</button>
+        <button class="tab" role="tab" data-t="settings">Sitemap &amp; settings</button>
+        <button class="tab" role="tab" data-t="history">History (${posts.length})</button>
+      </div></div><div class="pane" id="pane"></div>`;
+  $("h2", desk).textContent = c.name;
+  $("#dh-sub").textContent = `${c.domain || "No domain set"} · ${(c.urlCount||0).toLocaleString()} URLs saved` + (c.sitemapUpdated ? ` · sitemap updated ${new Date(c.sitemapUpdated).toLocaleDateString()}` : "");
+  desk.querySelectorAll(".tab").forEach(t => { t.setAttribute("aria-selected", t.dataset.t === tab); t.onclick = () => { tab = t.dataset.t; renderDesk(); }; });
+  ({post: renderPost, settings: renderSettings, history: renderHistory})[tab]($("#pane"), c);
+}
+
+function renderPost(pane, c){
+  pane.innerHTML = `
+    <div class="for-client">Linking to <b></b> <span class="stat"></span><span class="note">Wrong client? Pick another on the left.</span></div>
+    ${!c.urlCount ? `<div class="unavailable">This client has no sitemap yet, so there's nothing to link to. Add one under <b>Sitemap &amp; settings</b>.</div>` : ""}
+    ${!sample ? `<div class="unavailable">Generating needs Claude access on this page. Open it signed in to claude.ai and allow Claude when asked.</div>` : ""}
+    <div class="row">
+      <label for="p-title">Post title <span class="hint">Optional</span><input type="text" id="p-title"></label>
+      <label for="p-kw">Target keyword <span class="hint">Optional, steers the meta and anchors</span><input type="text" id="p-kw"></label>
+      <label for="p-url">Planned URL <span class="hint">Optional, so it isn't linked to itself</span><input type="url" id="p-url" placeholder="https://"></label>
+    </div>
+    <label for="p-content">Blog post content <span class="hint">Plain text, Markdown or HTML</span><textarea id="p-content" class="big" placeholder="Paste the full post here…"></textarea></label>
+    <div class="actions"><button class="btn primary" id="genBtn">Get meta &amp; links</button><span class="status" id="genStatus"></span></div>
+    <div id="results"></div>`;
+  $(".for-client b", pane).textContent = c.name;
+  $(".for-client .stat", pane).textContent = `${(c.domain || "").replace(/^https?:\/\//, "").replace(/\/$/, "")} · ${(c.urlCount||0).toLocaleString()} URLs`;
+  const f = {title:"#p-title", keyword:"#p-kw", url:"#p-url", content:"#p-content"};
+  const draft = draftFor(c.id);
+  for (const [k, s] of Object.entries(f)){ const el = $(s, pane); el.value = draft[k]; el.oninput = () => draft[k] = el.value; }
+  $("#genBtn").onclick = () => generate(c);
+  const run = runs[c.id];
+  if (run) { $("#genStatus").className = "status " + run.cls; $("#genStatus").innerHTML = run.html; $("#genBtn").disabled = run.busy; }
+  if (results[c.id]) renderResults(results[c.id]);
+}
+
+async function betterClient(c, content){
+  const scores = [];
+  for (const o of clients) { if (!o.urlCount) continue; try { scores.push({o, s: siteFit(await loadSitemap(o), o.domain, content)}); } catch {} }
+  const mine = scores.find(x => x.o.id === c.id)?.s || 0;
+  const best = scores.filter(x => x.o.id !== c.id).sort((a,b) => b.s - a.s)[0];
+  return best && best.s >= 4 && best.s > mine * 2.5 ? best.o : null;
+}
+document.addEventListener("click", e => {
+  const sw = e.target.closest("[data-switch]"), fo = e.target.closest("[data-force]");
+  if (sw) { const from = sw.dataset.from, to = clients.find(x => x.id === sw.dataset.switch); if (!to) return;
+    drafts[to.id] = {...draftFor(from)}; drafts[from] = {title:"",keyword:"",url:"",content:""}; delete runs[from];
+    selectClient(to.id, "post"); generate(to, true); }
+  if (fo) { const c = clients.find(x => x.id === fo.dataset.force); if (c) generate(c, true); }
+});
+
+async function generate(c, force){
+  if (runs[c.id]?.busy) return;
+  const draft = {...draftFor(c.id)};   // snapshot: edits or client switches during the run can't change it
+  if (!draft.content.trim()) { setRun(c.id, "Paste the post content first.", "err", false); return; }
+  if (!sample) { setRun(c.id, "Claude isn't available on this page right now.", "err", false); return; }
+  const spin = t => `<span class="actions"><span class="spinner"></span> ${t}</span>`;
+  setRun(c.id, spin("Reading the sitemap and the post…"));
+  try {
+    if (!force) {
+      const other = await betterClient(c, draft.content + " " + draft.title + " " + draft.keyword);
+      if (other) {
+        setRun(c.id, `<div class="warnbox"><span>This post looks like it's for <b>${esc(other.name)}</b>, not <b>${esc(c.name)}</b>. Its topics match ${esc(other.name)}'s pages much better, so links here would be weak or missing.</span>
+          <span class="actions"><button class="btn small primary" data-switch="${esc(other.id)}" data-from="${esc(c.id)}">Run it for ${esc(other.name)}</button><button class="btn small" data-force="${esc(c.id)}">Run for ${esc(c.name)} anyway</button></span></div>`, "", false);
+        return;
+      }
+    }
+    const all = await loadSitemap(c);
+    const self = normUrl(draft.url);
+    const pool = all.filter(u => normUrl(u) !== self);
+    const priority = (c.priority || "").split(/\s+/).filter(u => /^https?:/i.test(u));
+    const candidates = [...new Set([...priority, ...rankUrls(pool, draft.content, draft.keyword + " " + draft.title, 350)])];
+    const content = draft.content.length > 60000 ? draft.content.slice(0, 60000) + "\n[…truncated]" : draft.content;
+    const prompt = `You are an SEO editor preparing a blog post for publishing on a client's website.
+
+CLIENT: ${c.name} (${c.domain || "domain not given"})
+CLIENT NOTES (audience, tone, rules): ${c.notes || "none"}
+PRIORITY PAGES (link to these when genuinely relevant, e.g. service/money pages):
+${priority.join("\n") || "none"}
+
+POST TITLE: ${draft.title || "(not given — infer from content)"}
+TARGET KEYWORD: ${draft.keyword || "(not given — infer the main topic)"}
+POST URL: ${draft.url || "(not given)"}
+
+EXISTING SITE URLS (from the sitemap; ${candidates.length} shown${all.length > candidates.length ? ` of ${all.length}, pre-filtered by relevance` : ""}):
+${candidates.join("\n")}
+
+POST CONTENT:
+"""
+${content}
+"""
+
+TASKS
+1. Write 3 meta descriptions, each 140–158 characters, each a different angle (e.g. benefit-led, question-led, keyword-first). Include the target keyword naturally, write in the client's voice, end with a reason to click. No quotation marks, no clickbait.
+2. Suggest an SEO title tag (max 60 characters).
+3. Find 4–10 internal linking opportunities FROM this post TO existing URLs above. Rules:
+   - Work from the post outward: find phrases ALREADY WRITTEN in the post that describe what an existing page is about, then link that phrase. Never invent, reword, pluralise, re-case or shorten-with-ellipsis an anchor. Do not suggest adding new text.
+   - anchor_text MUST be copied character for character from the post content (2–6 words, natural and descriptive; never "click here", "read more" or a lone generic word). Prefer the phrase's first appearance in body text. Never use a phrase that only appears in a heading.
+   - sentence MUST be the exact sentence from the post that contains the anchor.
+   - If no phrase in the post fits a page, skip that page. Fewer accurate links beat more forced ones.
+   - Only use URLs from the list. Judge relevance from the URL path. Each target URL once, each anchor once. Spread links across the post. Don't link the home page unless it truly fits.
+   - priority: "high" for service/priority pages or very close topical matches, otherwise "medium" or "low".
+4. Suggest 3–6 existing URLs from the list that should link BACK to this new post, with a suggested anchor text.
+5. HEADINGS for SEO-friendly HTML. List every line of the post that works as a heading (the post title line if present, section headings, sub-headings, FAQ questions), with its text copied exactly as written in the post. Levels: 1 = the post's main title only; 2 = main sections; 3 = sub-sections or questions inside an H2 section; 4 only if truly nested deeper. Never skip a level. Normal sentences and paragraphs are not headings.
+6. LISTS for SEO-friendly HTML. Bullet symbols are often lost when a post is pasted, so find every run of lines that are really list items (short parallel lines, steps, features, pros/cons, often after a lead-in line ending in a colon). Copy each item exactly as written. type "ol" for ordered steps or rankings, otherwise "ul". Don't include the lead-in line, headings or full paragraphs.
+
+Return ONLY JSON in this shape:
+{"title_tag":"...","primary_keyword":"...","meta_descriptions":[{"text":"...","angle":"..."}],"internal_links":[{"anchor_text":"...","sentence":"...","target_url":"...","reason":"...","priority":"high|medium|low"}],"link_back_from":[{"source_url":"...","anchor_text":"...","reason":"..."}],"headings":[{"text":"...","level":2}],"lists":[{"type":"ul","items":["..."]}]}`;
+    setRun(c.id, spin("Writing meta descriptions and finding link spots…"));
+    const out = await sample.json(prompt, {modelTier: "default"});
+    const known = new Set(all.map(normUrl));
+    known.delete(self);
+    const {plain, headings: headingLines} = postPlain(draft.content);
+    const taken = {urls: new Set(), anchors: new Set()};
+    let {ok: links, bad} = checkLinks(out.internal_links || [], plain, known, taken, headingLines);
+    if (bad.length) {
+      setRun(c.id, spin(`${bad.length} anchor${bad.length > 1 ? "s weren't" : " wasn't"} in the post word for word. Asking for exact phrases…`));
+      const retry = `These internal link suggestions for a blog post used anchor text that does NOT appear word for word in the post (or reused an anchor already taken). For each target URL, find a different phrase that is ALREADY in the post, copied character for character (2–6 words, descriptive), that fits that page. If none fits, leave that URL out.
+
+Anchors already used (don't reuse): ${[...taken.anchors].join(" | ") || "none"}
+
+Links to fix:
+${bad.map(b => `- ${b.target_url} (rejected anchor: "${b.anchor_text}")`).join("\n")}
+
+POST CONTENT:
+"""
+${plain.slice(0, 60000)}
+"""
+
+Return ONLY JSON: {"internal_links":[{"anchor_text":"...","sentence":"...","target_url":"...","reason":"...","priority":"high|medium|low"}]}`;
+      try {
+        const fixed = await sample.json(retry, {modelTier: "default", cache: false});
+        links = links.concat(checkLinks(fixed.internal_links || [], plain, known, taken, headingLines).ok);
+      } catch {}
+    }
+    const dropped = (out.internal_links || []).length - links.length;
+    links.sort((a, b) => fold(plain).indexOf(fold(a.anchor_text)) - fold(plain).indexOf(fold(b.anchor_text)));
+    const result = {clientId: c.id, title: draft.title, keyword: draft.keyword || out.primary_keyword || "", url: draft.url, content: draft.content,
+      titleTag: out.title_tag || "", metas: out.meta_descriptions || [], links, headings: (out.headings || []).filter(h => h && h.text), lists: (out.lists || []).filter(l => l && Array.isArray(l.items)), backlinks: (out.link_back_from || []).filter(b => known.has(normUrl(b.source_url)))};
+    results[c.id] = result;
+    if (!links.length) setRun(c.id, esc(`Done, but no links: none of ${c.name}'s ${all.length} pages matched a phrase in this post. If the post is for another client, select that client and run it again. Saved to this client's history.`), "err", false);
+    else setRun(c.id, esc(`Done. ${links.length} links, every anchor matched to text already in the post` + (dropped > 0 ? ` (${dropped} suggestion${dropped > 1 ? "s" : ""} dropped because no exact phrase fit)` : "") + ". Saved to this client's history."), "ok", false);
+    if (currentId === c.id && tab === "post") renderResults(result);
+    savePost(c, result).catch(e => setRun(c.id, esc("Results are below, but saving to history failed: " + (e.message || e.code)), "err", false));
+  } catch (e) {
+    setRun(c.id, esc(e?.code === "not_granted" ? "Claude access was declined for this page. Allow it from the page's permissions and try again."
+      : e?.code === "rate_limited" ? "Too many requests just now. Wait a minute and try again."
+      : e?.code === "invalid_json" ? "Claude's answer came back malformed. Try again."
+      : "Couldn't generate: " + (e?.message || e?.code || e)), "err", false);
+  }
+}
+
+async function savePost(c, r){
+  if (!canWrite) return;
+  await db.collection(`clients/${c.id}/posts`).add({
+    title: r.title || r.titleTag || "Untitled post", url: r.url || "", keyword: r.keyword, titleTag: r.titleTag,
+    metas: r.metas, links: r.links.map(({on, ...l}) => l), backlinks: r.backlinks, headings: r.headings || [], lists: r.lists || [], content: r.content.slice(0, 120000),
+    excerpt: r.content.replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim().slice(0, 240), createdAt: Date.now()
+  });
+}
+
+function renderResults(r){
+  const box = $("#results"); if (!box) return;
+  const c = client();
+  box.innerHTML = `
+    <div class="pane" style="padding:0;gap:22px">
+      <section style="display:flex;flex-direction:column;gap:10px">
+        <div class="section-head"><h3>Meta descriptions</h3></div>
+        <div class="metas" id="metas"></div>
+        ${r.titleTag ? `<div class="card"><div class="section-head"><span class="pill">Title tag</span><button class="btn small" id="cpTitle">Copy</button></div><div class="meta-text" id="titleTag"></div>${meterTitle(r.titleTag.length)}</div>` : ""}
+      </section>
+      <section style="display:flex;flex-direction:column;gap:10px">
+        <div class="section-head"><h3>Internal links from this post (${r.links.length})</h3>
+          <div class="actions"><button class="btn small" id="cpList">Copy link list</button></div></div>
+        <p class="note" style="margin:0">The highlighted phrase is the anchor text. Untick any you don't want; the HTML below updates.</p>
+        <div class="links" id="links"></div>
+      </section>
+      <section style="display:flex;flex-direction:column;gap:10px">
+        <div class="section-head"><h3>SEO-formatted HTML</h3><button class="btn small primary" id="cpHTML">Copy HTML</button></div>
+        <label class="checkline" for="h1Toggle"><input type="checkbox" id="h1Toggle"> Include the title as the H1 <span class="hint">Leave off for WordPress and most CMSs, which already output the post title as the H1.</span></label>
+        <div class="outline" id="outline"></div>
+        <div class="preview" id="preview"></div>
+        <span class="status" id="htmlStatus"></span>
+      </section>
+      ${r.backlinks.length ? `<section style="display:flex;flex-direction:column;gap:10px">
+        <h3>Existing pages that should link to this post</h3>
+        <p class="note" style="margin:0">Based on page URLs only. Open each page and add the link where it reads naturally.</p>
+        <div class="links" id="backs"></div></section>` : ""}
+      ${r.url && c && !(sitemapCache[c.id]||[]).some(u => normUrl(u) === normUrl(r.url)) ? `<div class="actions"><button class="btn" id="addUrl">Add ${esc(slugOf(r.url))} to the saved sitemap</button><span class="note">so future posts can link to it</span></div>` : ""}
+    </div>`;
+  const metas = $("#metas");
+  r.metas.forEach(m => {
+    const d = document.createElement("div"); d.className = "card";
+    d.innerHTML = `<div class="section-head"><span class="pill"></span><button class="btn small">Copy</button></div><div class="meta-text"></div>${meterHTML(m.text.length)}`;
+    d.querySelector(".pill").textContent = m.angle || "option";
+    d.querySelector(".meta-text").textContent = m.text;
+    d.querySelector("button").onclick = e => copy(m.text, e.currentTarget);
+    metas.append(d);
+  });
+  if (r.titleTag){ $("#titleTag").textContent = r.titleTag; $("#cpTitle").onclick = e => copy(r.titleTag, e.currentTarget); }
+  const links = $("#links");
+  r.links.forEach((l, i) => {
+    const d = document.createElement("label"); d.className = "link card"; d.htmlFor = "lk" + i;
+    d.innerHTML = `<input type="checkbox" id="lk${i}" ${l.on ? "checked" : ""}><div class="body">
+      <div class="ctx">${highlight(l.sentence || l.anchor_text, l.anchor_text)}</div>
+      <div class="url"></div>
+      <div class="why"><span class="pill ${l.priority === "high" ? "high" : ""}">${esc(l.priority || "medium")}</span> ${esc(l.reason || "")}</div></div>`;
+    d.querySelector(".url").textContent = "→ " + l.target_url;
+    d.querySelector("input").onchange = e => { l.on = e.target.checked; refreshHTML(); };
+    links.append(d);
+  });
+  $("#cpList").onclick = e => copy(r.links.filter(l => l.on).map(l => `"${l.anchor_text}" → ${l.target_url}`).join("\n"), e.currentTarget);
+  let built = "";
+  const refreshHTML = () => {
+    const chosen = r.links.filter(l => l.on);
+    const res = insertLinks(buildSeoHTML(r.content, r.headings, r.title || r.titleTag, r.lists, {includeH1}), chosen);
+    built = res.html;
+    const pv = document.createElement("div"); pv.innerHTML = built;
+    pv.querySelectorAll("script,style,iframe,object,embed").forEach(n => n.remove());
+    $("#preview").replaceChildren(...pv.childNodes);
+    const hs = [...$("#preview").querySelectorAll("h1,h2,h3,h4,h5,h6")];
+    const ol = $("#outline"); ol.replaceChildren();
+    if (!hs.length) ol.innerHTML = `<span class="note">No headings found in this post. Add some section headings so search engines and readers can scan it.</span>`;
+    hs.forEach(h => { const d = document.createElement("div"); d.style.paddingLeft = (+h.tagName[1] - (includeH1 ? 1 : 2)) * 16 + "px"; d.innerHTML = `<code>${h.tagName}</code><span></span>`; d.querySelector("span").textContent = h.textContent; ol.append(d); });
+    const st = $("#htmlStatus");
+    st.className = "status" + (res.placed < chosen.length ? " err" : " ok");
+    const nl = $("#preview").querySelectorAll("ul,ol").length;
+    st.textContent = `${hs.filter(h => h.tagName === "H2").length} H2 · ${hs.filter(h => h.tagName === "H3").length} H3 · ${nl} list${nl === 1 ? "" : "s"} · ` + (res.placed < chosen.length ? `${res.placed} of ${chosen.length} links placed. The rest are split by formatting, so add those by hand.` : `${res.placed} links placed.`);
+  };
+  $("#h1Toggle").checked = includeH1;
+  $("#h1Toggle").onchange = e => { includeH1 = e.target.checked; try { localStorage.setItem("pd-h1", includeH1 ? "1" : "0"); } catch {} refreshHTML(); };
+  $("#cpHTML").onclick = e => copy(built, e.currentTarget);
+  refreshHTML();
+  const backs = $("#backs");
+  r.backlinks.forEach(b => {
+    const d = document.createElement("div"); d.className = "card";
+    d.innerHTML = `<div class="url"></div><div class="ctx">Anchor: <mark></mark></div><div class="why"></div>`;
+    d.querySelector(".url").textContent = b.source_url; d.querySelector("mark").textContent = b.anchor_text; d.querySelector(".why").textContent = b.reason || "";
+    backs?.append(d);
+  });
+  const add = $("#addUrl");
+  if (add) add.onclick = async () => {
+    add.disabled = true;
+    try { const urls = [...(await loadSitemap(c)), r.url.trim()]; await saveSitemap(c, urls); add.textContent = "Added to sitemap"; }
+    catch (e) { add.textContent = "Couldn't add: " + (e.message || e.code); }
+  };
+}
+function meterTitle(len){ const ok = titleStatus(len) === "good", col = ok ? "var(--good)" : "var(--bad)"; return `<div class="meter"><i><span style="width:${Math.min(100,len/70*100)}%;background:${col}"></span></i>${len} chars · ${titleStatus(len)}</div>`; }
+
+function renderSettings(pane, c){
+  pane.innerHTML = `
+    <div class="row">
+      <label for="s-name">Client name<input type="text" id="s-name"></label>
+      <label for="s-domain">Domain<input type="text" id="s-domain" placeholder="example.com"></label>
+    </div>
+    <label for="s-notes">Notes for Claude <span class="hint">Audience, tone of voice, location, words to avoid. Used every time.</span><textarea id="s-notes"></textarea></label>
+    <label for="s-priority">Priority pages <span class="hint">One URL per line. Service or money pages you want posts to link to when relevant.</span><textarea id="s-priority" class="mono"></textarea></label>
+    <div class="actions"><button class="btn primary" id="saveInfo">Save details</button><span class="status" id="infoStatus"></span></div>
+    <hr style="border:0;border-top:1px solid var(--line);margin:4px 0">
+    <div class="section-head"><h3>Sitemap</h3><span class="stat" id="smCount"></span></div>
+    <label for="s-sitemap">Paste sitemap XML or a list of URLs <span class="hint">If it's a sitemap index, paste each child sitemap (posts, pages, services) and choose Add.</span><textarea id="s-sitemap" class="mono" placeholder="<urlset>…</urlset>  or one URL per line"></textarea></label>
+    <div class="actions">
+      <label for="s-file" class="btn small" style="flex-direction:row">Upload .xml / .txt<input type="file" id="s-file" accept=".xml,.txt,.csv,text/*" hidden></label>
+      <button class="btn primary" id="smReplace">Replace saved sitemap</button>
+      <button class="btn" id="smAppend">Add to saved sitemap</button>
+      <span class="status" id="smStatus"></span>
+    </div>
+    <input type="text" id="s-filter" placeholder="Filter saved URLs…">
+    <div class="urllist" id="smList"><div>Loading…</div></div>
+    <hr style="border:0;border-top:1px solid var(--line);margin:4px 0">
+    <div id="delZone"><button class="btn small danger" id="delBtn">Delete this client</button></div>`;
+  $("#s-name").value = c.name || ""; $("#s-domain").value = c.domain || ""; $("#s-notes").value = c.notes || ""; $("#s-priority").value = c.priority || "";
+  $("#saveInfo").onclick = async () => {
+    const s = $("#infoStatus");
+    try { await db.doc(`clients/${c.id}`).update({name: $("#s-name").value.trim() || "Untitled client", domain: $("#s-domain").value.trim(), notes: $("#s-notes").value, priority: $("#s-priority").value}); s.className = "status ok"; s.textContent = "Saved"; }
+    catch (e) { s.className = "status err"; s.textContent = "Couldn't save: " + (e.message || e.code); }
+  };
+  $("#s-file").onchange = async e => { const f = e.target.files[0]; if (f) $("#s-sitemap").value = await f.text(); };
+  const showList = urls => {
+    $("#smCount").textContent = `${urls.length.toLocaleString()} URLs saved`;
+    const q = $("#s-filter").value.toLowerCase();
+    const shown = urls.filter(u => u.toLowerCase().includes(q));
+    const list = $("#smList"); list.innerHTML = "";
+    if (!shown.length) { list.innerHTML = `<div>${urls.length ? "No URLs match." : "No sitemap saved yet."}</div>`; return; }
+    shown.slice(0, 500).forEach(u => { const d = document.createElement("div"); d.textContent = u; list.append(d); });
+    if (shown.length > 500) { const d = document.createElement("div"); d.textContent = `…and ${shown.length - 500} more`; list.append(d); }
+  };
+  loadSitemap(c).then(urls => { showList(urls); $("#s-filter").oninput = () => showList(urls); }).catch(() => $("#smList").innerHTML = "<div>Couldn't load the saved sitemap.</div>");
+  const doSave = async mode => {
+    const s = $("#smStatus");
+    const {urls, isIndex, childSitemaps} = parseSitemap($("#s-sitemap").value);
+    if (isIndex && !urls.length) { s.className = "status err"; s.textContent = `That's a sitemap index. Open and paste these child sitemaps instead: ${childSitemaps.slice(0,6).join(", ")}`; return; }
+    if (!urls.length) { s.className = "status err"; s.textContent = "No URLs found. Paste sitemap XML or one URL per line."; return; }
+    s.className = "status"; s.textContent = "Saving…";
+    try {
+      const existing = mode === "append" ? await loadSitemap(c) : [];
+      const merged = [...new Set([...existing, ...urls])];
+      await saveSitemap(c, merged);
+      if (!c.domain) { try { await db.doc(`clients/${c.id}`).update({domain: new URL(urls[0]).hostname.replace(/^www\./,"")}); } catch {} }
+      s.className = "status ok"; s.textContent = `Saved ${merged.length.toLocaleString()} URLs${mode === "append" ? ` (${merged.length - existing.length} new)` : ""}.`;
+      $("#s-sitemap").value = ""; showList(merged);
+    } catch (e) { s.className = "status err"; s.textContent = e.code === "quota_exceeded" ? "The saved data is full. Delete an old client or trim this sitemap." : "Couldn't save: " + (e.message || e.code); }
+  };
+  $("#smReplace").onclick = () => doSave("replace");
+  $("#smAppend").onclick = () => doSave("append");
+  $("#delBtn").onclick = () => {
+    const z = $("#delZone");
+    z.innerHTML = `<div class="confirm"><span>Delete <b></b>, its sitemap and its post history?</span><button class="btn small danger" id="delYes">Delete</button><button class="btn small" id="delNo">Cancel</button></div>`;
+    z.querySelector("b").textContent = c.name;
+    $("#delNo").onclick = () => renderDesk();
+    $("#delYes").onclick = async () => {
+      try {
+        for (let i = 0; i < (c.chunks||0); i++) await db.doc(`clients/${c.id}/sitemap/c${i}`).delete();
+        for (const p of posts) await db.doc(`clients/${c.id}/posts/${p.id}`).delete();
+        await db.doc(`clients/${c.id}`).delete();
+        delete sitemapCache[c.id]; currentId = null; postsUnsub?.(); renderDesk();
+      } catch (e) { z.textContent = "Couldn't delete: " + (e.message || e.code); }
+    };
+  };
+}
+
+function renderHistory(pane){
+  if (!posts.length) { pane.innerHTML = `<p class="note">No posts yet. Each time you run <b>New post</b>, the meta descriptions and links are saved here.</p>`; return; }
+  pane.innerHTML = "";
+  for (const p of posts){
+    const d = document.createElement("details"); d.className = "hist";
+    d.innerHTML = `<summary><b></b><span class="stat"></span></summary><div class="inner">
+      <div class="note excerpt"></div><h3>Meta descriptions</h3><div class="metas"></div><h3>Internal links</h3><div class="links"></div>
+      <div class="actions"><button class="btn small cphtml">Copy SEO HTML with links</button><button class="btn small danger rm">Remove from history</button></div></div>`;
+    d.querySelector("b").textContent = p.title;
+    d.querySelector(".stat").textContent = `${new Date(p.createdAt).toLocaleDateString()} · ${(p.links||[]).length} links`;
+    d.querySelector(".excerpt").textContent = (p.url ? p.url + " · " : "") + (p.excerpt || "") + "…";
+    const m = d.querySelector(".metas");
+    (p.metas||[]).forEach(x => { const c = document.createElement("div"); c.className = "card"; c.innerHTML = `<div class="meta-text"></div><div class="actions"><button class="btn small">Copy</button></div>`; c.querySelector(".meta-text").textContent = x.text; c.querySelector("button").onclick = e => copy(x.text, e.currentTarget); m.append(c); });
+    const l = d.querySelector(".links");
+    (p.links||[]).forEach(x => { const c = document.createElement("div"); c.className = "card"; c.innerHTML = `<div class="ctx">${highlight(x.sentence || x.anchor_text, x.anchor_text)}</div><div class="url"></div>`; c.querySelector(".url").textContent = "→ " + x.target_url; l.append(c); });
+    const ch = d.querySelector(".cphtml");
+    if (p.content) ch.onclick = e => copy(insertLinks(buildSeoHTML(p.content, p.headings, p.title, p.lists, {includeH1}), p.links || []).html, e.currentTarget); else ch.hidden = true;
+    d.querySelector(".rm").onclick = async e => { e.currentTarget.disabled = true; try { await db.doc(`clients/${currentId}/posts/${p.id}`).delete(); } catch {} };
+    pane.append(d);
+  }
+}
+
+async function newClient(){
+  if (!db) { notice("Sign in to claude.ai to save clients."); return; }
+  if (!canWrite) { notice("You can view this desk but not add clients. Ask the owner for edit access."); return; }
+  try {
+    const ref = await db.collection("clients").add({name: "New client", domain: "", notes: "", priority: "", chunks: 0, urlCount: 0, createdAt: Date.now()});
+    clients.push({id: ref.id, name: "New client", chunks: 0, urlCount: 0, createdAt: Date.now()});
+    selectClient(ref.id, "settings");
+    setTimeout(() => { const n = $("#s-name"); n?.focus(); n?.select(); }, 50);
+  } catch (e) { notice("Couldn't add a client: " + (e.message || e.code)); }
+}
+$("#newClientBtn").onclick = newClient;
+
+// ---------- boot ----------
+renderDesk();
+(async () => {
+  [db, sample, user] = await Promise.all([claude.use("db"), claude.use("sample"), claude.use("user")]);
+  if (user) { try { const w = await user.can("data.write"); if (w === false) canWrite = false; } catch {} }
+  if (!db) { notice("Open this page signed in to claude.ai to save clients and sitemaps."); renderClients(); return; }
+  let first = true;
+  db.collection("clients").orderBy("createdAt").onSnapshot(snap => {
+    clients = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    if (first) {
+      first = false;
+      let saved = null; try { saved = localStorage.getItem("pd-client"); } catch {}
+      if (saved && clients.some(c => c.id === saved)) { selectClient(saved); return; }
+      if (clients.length) { selectClient(clients[0].id); return; }
+    }
+    renderClients();
+    if (currentId && !clients.some(c => c.id === currentId)) { currentId = null; renderDesk(); return; }
+    const c = client(), sub = $("#dh-sub"), h = $("#desk h2");
+    if (c && sub) { sub.textContent = `${c.domain || "No domain set"} · ${(c.urlCount||0).toLocaleString()} URLs saved`; if (h) h.textContent = c.name; }
+    else if (!c) renderDesk();
+  }, e => notice("Couldn't load clients: " + (e.message || e.code)));
+})();
+})();
+</script>

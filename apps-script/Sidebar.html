@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<style>
+  :root { --ink: #202124; --muted: #5f6368; --line: #dadce0; --blue: #1a73e8; --green: #188038; --amber: #b06000; --red: #d93025; --bg: #f8f9fa; }
+  * { box-sizing: border-box; }
+  body { font: 13px/1.45 Arial, sans-serif; color: var(--ink); margin: 0; padding: 12px; }
+  h2 { font-size: 13px; margin: 16px 0 6px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 3px; }
+  input, select, textarea { width: 100%; font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px; }
+  textarea { resize: vertical; min-height: 54px; }
+  button { font: inherit; border-radius: 4px; padding: 7px 12px; cursor: pointer; border: 1px solid var(--line); background: #fff; color: var(--blue); }
+  button.primary { background: var(--blue); color: #fff; border-color: var(--blue); width: 100%; margin-top: 12px; padding: 9px; }
+  button:disabled { opacity: .5; cursor: default; }
+  details { margin-top: 8px; }
+  summary { cursor: pointer; color: var(--blue); font-size: 12px; }
+  .card { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; margin: 6px 0; background: #fff; }
+  .meta { display: flex; gap: 8px; align-items: flex-start; }
+  .meta input { width: auto; margin-top: 3px; }
+  .small { font-size: 11px; color: var(--muted); }
+  .good { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); }
+  .anchor { font-weight: bold; }
+  .url { word-break: break-all; color: var(--blue); font-size: 12px; }
+  .badge { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); margin-left: 4px; }
+  .badge.high { background: #e6f4ea; border-color: #a8dab5; color: var(--green); }
+  .row { display: flex; gap: 6px; margin-top: 8px; }
+  .row button { flex: 1; }
+  #status { margin-top: 10px; padding: 8px 10px; border-radius: 4px; display: none; }
+  #status.info { display: block; background: #e8f0fe; }
+  #status.error { display: block; background: #fce8e6; color: var(--red); }
+  #status.ok { display: block; background: #e6f4ea; color: var(--green); }
+  .hidden { display: none; }
+  .copy { padding: 2px 8px; font-size: 11px; float: right; }
+</style>
+</head>
+<body>
+  <div id="setup">
+    <label for="client">Client</label>
+    <select id="client"></select>
+
+    <div id="readSite" class="hidden">
+      <div id="newFields">
+        <label for="domain">Website</label>
+        <input id="domain" placeholder="example.co.uk">
+      </div>
+      <div id="notReadNote" class="small" style="margin-top:6px">Post Desk hasn't read this site yet. It works now using the
+        sitemap, but links are better once the site has been read.</div>
+      <details><summary>Sitemap address (optional)</summary>
+        <input id="sitemap" placeholder="Found automatically"></details>
+      <button id="indexBtn" style="width:100%;margin-top:8px">Read the client's site</button>
+      <div class="small">Reads every page once, so links can be picked by meaning. A big site can take a few goes.</div>
+    </div>
+
+    <div id="clientSettings">
+      <h2>Client settings <span class="small" style="text-transform:none;letter-spacing:0">(shared with the team)</span></h2>
+      <label for="name">Client name</label>
+      <input id="name">
+      <label for="notes">Notes for the AI (audience, tone, rules)</label>
+      <textarea id="notes"></textarea>
+      <label for="priority">Priority pages (one URL per line)</label>
+      <textarea id="priority" placeholder="https://example.co.uk/our-main-service/"></textarea>
+    </div>
+
+    <label for="keyword">Target keyword (optional)</label>
+    <input id="keyword">
+    <label for="url">Planned post URL (optional, so it never links to itself)</label>
+    <input id="url">
+
+    <button id="runBtn" class="primary">Find links and meta descriptions</button>
+    <button id="htmlBtn" style="width:100%;margin-top:8px">Copy this post as HTML</button>
+    <div class="small">Clean HTML for the website: headings, paragraphs, lists, bold, italic and links. Add the links first.</div>
+    <div id="version" class="small" style="margin-top:10px;text-align:right"></div>
+  </div>
+
+  <div id="status"></div>
+
+  <div id="results" class="hidden">
+    <h2>SEO title</h2>
+    <div class="card"><button class="copy" data-copy="titleText">Copy</button><span id="titleText"></span>
+      <div id="titleInfo" class="small"></div></div>
+
+    <h2>Meta descriptions</h2>
+    <div id="metas"></div>
+    <button id="notesBtn" style="width:100%">Add title and chosen meta to the top of the doc</button>
+
+    <h2>Internal links</h2>
+    <div id="links"></div>
+    <button id="linksBtn" class="primary">Add ticked links to the doc</button>
+    <button id="htmlBtn2" style="width:100%;margin-top:8px">Copy this post as HTML</button>
+
+    <div id="backWrap">
+      <h2>Pages that should link to this post</h2>
+      <div id="back"></div>
+    </div>
+    <div id="runInfo" class="small" style="margin-top:12px"></div>
+  </div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const NEW = '__new__';
+  let result = null;
+  let clients = [];
+
+  function status(kind, text) { const s = $('status'); s.className = kind; s.textContent = text; }
+  function busy(on) { ['runBtn', 'indexBtn', 'linksBtn', 'notesBtn', 'htmlBtn', 'htmlBtn2'].forEach((id) => { if ($(id)) $(id).disabled = on; }); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+  function path(u) { try { const x = new URL(u); return x.pathname; } catch (e) { return u; } }
+  function form() {
+    const picked = $('client').value;
+    return { domain: picked === NEW ? $('domain').value.trim() : picked, sitemap: $('sitemap').value.trim(),
+             name: $('name').value.trim(), notes: $('notes').value, priority: $('priority').value,
+             keyword: $('keyword').value.trim(), url: $('url').value.trim() };
+  }
+  function fail(e) { busy(false); status('error', e.message || String(e)); }
+
+  function fillClient(c) { $('name').value = c.name || ''; $('notes').value = c.notes || ''; $('priority').value = c.priority || ''; }
+
+  function load() {
+    status('info', 'Loading clients...');
+    google.script.run.withSuccessHandler((s) => {
+      const sel = $('client');
+      clients = s.clients;
+      sel.innerHTML = '<option value="">Choose a client</option>' +
+        s.clients.map((c) => `<option value="${esc(c.domain)}">${esc(c.domain)}${c.indexed ? '' : ' (not read yet)'}</option>`).join('') +
+        `<option value="${NEW}">+ Add a client that isn't listed</option>`;
+      if (s.domain && s.clients.some((c) => c.domain === s.domain)) sel.value = s.domain;
+      showReadSite();
+      $('keyword').value = s.keyword; $('url').value = s.url;
+      $('version').textContent = 'Script version ' + s.version;
+      fillClient(s.client);
+      if (s.error) status('error', s.error); else status('', '');
+    }).withFailureHandler(fail).getSetup();
+  }
+
+  // The read-the-site panel: for a client that isn't listed, or one from Search Console that hasn't been read yet.
+  function showReadSite() {
+    const v = $('client').value;
+    const c = clients.find((x) => x.domain === v);
+    $('readSite').classList.toggle('hidden', !(v === NEW || (c && !c.indexed)));
+    $('newFields').classList.toggle('hidden', v !== NEW);
+    $('notReadNote').classList.toggle('hidden', v === NEW);
+  }
+
+  $('client').addEventListener('change', () => {
+    const v = $('client').value;
+    showReadSite();
+    if (v === NEW) { fillClient({}); return; }
+    if (v) google.script.run.withSuccessHandler(fillClient).getClient(v);
+  });
+
+  $('indexBtn').addEventListener('click', () => {
+    const f = form();
+    busy(true); status('info', 'Reading the site. This can take a few minutes...');
+    google.script.run.withSuccessHandler((s) => {
+      busy(false);
+      const done = !s.remaining;
+      status(done ? 'ok' : 'info', done
+        ? `Done: ${s.indexed} pages read. You can run Post Desk on this post now.`
+        : `${s.indexed} pages read so far, ${s.remaining} to go${s.stopped_early ? ' (the site asked us to slow down)' : ''}. Click "Read the client's site" again to carry on.`);
+      if (done) load();
+    }).withFailureHandler(fail).indexSite(f);
+  });
+
+  $('runBtn').addEventListener('click', () => {
+    busy(true); $('results').classList.add('hidden');
+    status('info', 'Reading the post and finding links. This usually takes 10 to 20 seconds...');
+    google.script.run.withSuccessHandler((r) => { busy(false); result = r; show(r); status('', ''); }).withFailureHandler(fail).runPostDesk(form());
+  });
+
+  function show(r) {
+    $('results').classList.remove('hidden');
+    $('titleText').textContent = r.title_tag;
+    $('titleInfo').innerHTML = `${r.title_tag.length} characters <span class="${r.title_status === 'good' ? 'good' : 'warn'}">${r.title_status === 'good' ? 'fits' : 'may be cut off in Google'}</span>`;
+
+    $('metas').innerHTML = r.meta_descriptions.map((m, i) => `
+      <div class="card meta"><input type="radio" name="meta" value="${i}" ${i === 0 ? 'checked' : ''}>
+        <div><button class="copy" data-meta="${i}">Copy</button>${esc(m.text)}
+          <div class="small">${esc(m.angle)} · ${m.length} characters ·
+            <span class="${m.status === 'good' ? 'good' : 'warn'}">${m.status === 'good' ? 'good length' : m.status}</span></div></div></div>`).join('');
+
+    $('links').innerHTML = r.internal_links.length ? r.internal_links.map((l, i) => `
+      <div class="card meta"><input type="checkbox" data-link="${i}" checked>
+        <div><span class="anchor">"${esc(l.anchor_text)}"</span><span class="badge ${l.priority}">${esc(l.priority)}</span>
+          <div class="url">${esc(path(l.target_url))}</div>
+          <div class="small">${esc(l.reason)}</div></div></div>`).join('')
+      : '<div class="small">No links fitted this post. Check the client is right, or add more detail to the post.</div>';
+    $('linksBtn').classList.toggle('hidden', !r.internal_links.length);
+
+    $('backWrap').classList.toggle('hidden', !r.link_back_from.length);
+    $('back').innerHTML = r.link_back_from.map((b) => `
+      <div class="card"><div class="url">${esc(path(b.source_url))}</div>
+        <div class="small">Suggested anchor: "${esc(b.anchor_text)}". ${esc(b.reason)}</div></div>`).join('');
+
+    const s = r.stats, sc = s.search_console;
+    const scLine = sc && !sc.error
+      ? ` Search Console data used (${sc.close_to_page_one_linked} link${sc.close_to_page_one_linked === 1 ? '' : 's'} to pages close to page one).`
+      : sc && /no_property/.test(sc.error)
+        ? ' No Search Console data for this client, so links were picked on meaning and page type.'
+        : sc && sc.error ? ' Search Console couldn\'t be read this time, so links were picked on meaning and page type.' : '';
+    const readLine = s.retrieval === 'url' ? ' This site hasn\'t been read yet, so links were picked from page addresses: read the site for better picks.' : '';
+    $('runInfo').textContent = `${r.seconds}s · ${s.verified} links checked against the site and the post` +
+      (s.fell_back ? ' · backup model used' : '') + '.' + scLine + readLine;
+  }
+
+  // Google's sidebar frame can block the clipboard API, so fall back to the older copy command.
+  function copyText(text) {
+    return new Promise((resolve, reject) => {
+      const old = () => {
+        const t = document.createElement('textarea');
+        t.value = text; t.style.position = 'fixed'; t.style.opacity = '0';
+        document.body.appendChild(t); t.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(t);
+        ok ? resolve() : reject(new Error('copy blocked'));
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(resolve, old); else old();
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('button.copy');
+    if (!b || !result) return;
+    const text = b.dataset.meta != null ? result.meta_descriptions[+b.dataset.meta].text : result.title_tag;
+    copyText(text).then(() => { b.textContent = 'Copied'; setTimeout(() => (b.textContent = 'Copy'), 1500); },
+      () => status('error', 'Couldn\'t copy. Select the text and copy it instead.'));
+  });
+
+  function copyHtml() {
+    busy(true);
+    google.script.run.withSuccessHandler((html) => {
+      busy(false);
+      if (!html) return status('error', 'The doc looks empty.');
+      copyText(html).then(() => status('ok', `Copied the post as HTML (${html.split('\n').length} lines). Paste it into the website's HTML or code view.`),
+        () => { status('error', 'Couldn\'t copy automatically. Here it is to copy by hand:'); showHtml(html); });
+    }).withFailureHandler(fail).getHtml();
+  }
+  function showHtml(html) {
+    let t = $('htmlOut');
+    if (!t) { t = document.createElement('textarea'); t.id = 'htmlOut'; t.style.minHeight = '160px'; $('status').after(t); }
+    t.value = html; t.select();
+  }
+  $('htmlBtn').addEventListener('click', copyHtml);
+  $('htmlBtn2').addEventListener('click', copyHtml);
+
+  $('linksBtn').addEventListener('click', () => {
+    const picked = [...document.querySelectorAll('[data-link]:checked')].map((c) => result.internal_links[+c.dataset.link]);
+    if (!picked.length) return status('error', 'Tick at least one link.');
+    busy(true);
+    google.script.run.withSuccessHandler((o) => {
+      busy(false);
+      status(o.missing.length ? 'error' : 'ok', `Added ${o.added.length} link${o.added.length === 1 ? '' : 's'} to the doc.` +
+        (o.missing.length ? ` Couldn't find: ${o.missing.map((a) => '"' + a + '"').join(', ')} (has the text changed?).` : ''));
+    }).withFailureHandler(fail).insertLinks(picked);
+  });
+
+  $('notesBtn').addEventListener('click', () => {
+    const m = document.querySelector('input[name=meta]:checked');
+    busy(true);
+    google.script.run.withSuccessHandler(() => { busy(false); status('ok', 'Added the title and meta description to the top of the doc.'); })
+      .withFailureHandler(fail).addSeoNotes(result.title_tag, result.meta_descriptions[m ? +m.value : 0].text);
+  });
+
+  load();
+</script>
+</body>
+</html>

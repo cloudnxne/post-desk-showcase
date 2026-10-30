@@ -1,0 +1,41 @@
+{
+  "timeZone": "Europe/London",
+  "dependencies": {
+    "enabledAdvancedServices": [
+      {
+        "userSymbol": "Docs",
+        "version": "v1",
+        "serviceId": "docs"
+      }
+    ]
+  },
+  "runtimeVersion": "V8",
+  "exceptionLogging": "STACKDRIVER",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/documents.currentonly",
+    "https://www.googleapis.com/auth/script.container.ui",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "openid",
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/documents",
+    "https://www.googleapis.com/auth/webmasters.readonly"
+  ],
+  "addOns": {
+    "common": {
+      "name": "Post Desk",
+      "logoUrl": "https://www.gstatic.com/images/icons/material/system/1x/link_black_48dp.png",
+      "layoutProperties": {
+        "primaryColor": "#1a73e8"
+      }
+    },
+    "docs": {
+      "homepageTrigger": {
+        "runFunction": "onDocsHomepage"
+      },
+      "onFileScopeGrantedTrigger": {
+        "runFunction": "onFileScopeGranted"
+      }
+    }
+  }
+}

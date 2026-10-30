@@ -1,0 +1,9 @@
+fastapi==0.120.*
+uvicorn[standard]==0.38.*
+pydantic==2.*
+anthropic>=0.70
+google-auth[requests]>=2.30
+numpy>=2.0
+httpx>=0.27
+google-genai>=1.30
+google-cloud-storage>=2.18
