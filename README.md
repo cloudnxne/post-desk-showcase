@@ -2,7 +2,7 @@
 
 **An AI tool that prepares agency blog posts for publishing: meta descriptions, SEO title, verified internal links and clean HTML, from inside Google Docs.**
 
-I built this at the digital marketing agency where I work, to take the slow, error-prone part out of publishing client blog posts. This is a public copy: client content, people's names and my own Cloud setup have been removed, and the examples use made-up clients.
+I built this in my own time to take the slow, error-prone part out of publishing client blog posts, a job I know well from working in SEO at a digital marketing agency. In this public copy, real client content, people's names and my own Cloud setup have been removed, and the examples use made-up clients.
 
 ## The problem
 
